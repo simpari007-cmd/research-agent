@@ -4,9 +4,8 @@ Given a ticker and a research question, this agent decides for itself what to in
 
 **[Try it live](https://research-agent-kvscuabrek3qeus3kdcxvu.streamlit.app/)** · Python · Anthropic Claude API · yfinance · SEC EDGAR
 
-<!-- Add a screenshot or GIF of the Streamlit UI here. Drag the image into a GitHub issue comment to get a URL, then paste it below as:
-![Agent reasoning trace](IMAGE_URL)
--->
+
+![Agent reasoning trace](reasoning-trace.png)
 
 ## Why an agentic loop, not RAG
 
