@@ -2,24 +2,52 @@
 
 Given a ticker and a research question, this agent decides for itself what to investigate, pulls real data via tool calls, evaluates whether it has enough evidence, and either keeps investigating or writes up findings with sources, instead of following a fixed, scripted pipeline.
 
+**[Try it live](ADD_YOUR_STREAMLIT_URL_HERE)** · Python · Anthropic Claude API · yfinance · SEC EDGAR
+
+<!-- Add a screenshot or GIF of the Streamlit UI here. Drag the image into a GitHub issue comment to get a URL, then paste it below as:
+![Agent reasoning trace](IMAGE_URL)
+-->
+
 ## Why an agentic loop, not RAG
 
-Most "AI + finance" projects retrieve a fixed set of documents once and summarize them. This agent instead runs a real plan, act, observe, replan loop: at each step, Claude decides which tool(s) to call based on what it's learned so far, not a hardcoded sequence. That decision-making, visible in the reasoning trace, is the actual differentiator.
+Most "AI + finance" projects retrieve a fixed set of documents once and summarize them. This agent instead runs a real plan, act, observe, replan loop: at each step, Claude decides which tool(s) to call based on what it has learned so far, not a hardcoded sequence. That decision-making, visible in the reasoning trace, is the actual differentiator.
 
 ## Architecture
 
 **Tools** (all real, live data, no mocked responses):
+
 - `get_financial_data` pulls quarterly financial metrics (e.g. gross margin) via Yahoo Finance, computing derived metrics (like margin ratios) from raw line items
 - `get_news` pulls recent company news, filtered for relevance to a topic via a single batched Claude call (not per-article, to control cost)
 - `get_filing_section` pulls a specific section (e.g. Risk Factors, MD&A) from a company's latest SEC 10-K filing, parsed and cleaned from raw HTML
 
 **Loop control:**
+
 - Hard-capped at 5 tool-call steps before the agent must answer with what it has, and forced to actually synthesize an answer at that point rather than stall
 - Handles parallel tool calls correctly (Claude often requests multiple independent tools in a single step, confirmed via live testing that every `tool_use` block requires a matching `tool_result` or the API rejects the whole request)
-- Every step logs what was called, why, and what came back, this is the reasoning trace
+- Every step logs what was called, why, and what came back. This is the reasoning trace.
 
-**A real trust safeguard, found and fixed during testing:**
-Early runs showed Claude generating confident-sounding explanations even when no supporting news was found, presenting inference as if it were a data-backed finding. Fixed with a standing system instruction requiring any unconfirmed reasoning to be explicitly labeled `"Inferred (not confirmed by available data):"`, kept clearly separate from tool-grounded findings. An agent that's honest about the limits of its own evidence is a stronger result than one that always sounds equally sure of itself.
+**A real trust safeguard, found and fixed during testing:** Early runs showed Claude generating confident-sounding explanations even when no supporting news was found, presenting inference as if it were a data-backed finding. Fixed with a standing system instruction requiring any unconfirmed reasoning to be explicitly labeled `"Inferred (not confirmed by available data):"`, kept clearly separate from tool-grounded findings. An agent that is honest about the limits of its own evidence is a stronger result than one that always sounds equally sure of itself.
+
+## Evaluation
+
+Batch-tested across 10 companies (NVDA, AAPL, MSFT, TSLA, JPM, KO, AMZN, META, GOOGL, DIS) and 3 question types (gross margin trend, risk factors, revenue growth):
+
+| Metric | Result |
+| --- | --- |
+| Completion rate | 100% (30/30 queries) |
+| Average reasoning steps | 1.7 |
+| Average latency | 10.1 seconds per query |
+| Accuracy spot-check | NVDA and AAPL outputs manually cross-referenced against SEC 10-K filings; cited figures and reasoning matched filing language in both cases |
+
+**What completion rate does and does not mean:** it measures whether the agent produced a synthesized answer without stalling or erroring, not whether every answer was correct. Accuracy was verified manually on a 2-company subset only. Broader accuracy testing is open work.
+
+## Known limitations
+
+- Accuracy verified on 2 of 10 companies, not all 10
+- Capped at 5 tool-call steps, so genuinely multi-hop questions can hit the ceiling and answer from partial evidence
+- `get_filing_section` parses the latest 10-K only, so it misses quarter-to-quarter changes in 10-Qs
+- No memory across runs: every question starts cold
+- yfinance is an unofficial API and occasionally returns stale or missing line items
 
 ## UI
 
@@ -43,20 +71,27 @@ Python, Anthropic Claude API (tool use / function calling), yfinance, SEC EDGAR 
 
 ## Running it
 
-Terminal version:
-```
-pip3 install anthropic yfinance beautifulsoup4 requests
+```bash
+pip install -r requirements.txt
 export ANTHROPIC_API_KEY="your-key-here"
+```
+
+Terminal version:
+
+```bash
 python3 research_agent_loop.py
 ```
 
 UI version:
-```
-pip3 install streamlit
-export ANTHROPIC_API_KEY="your-key-here"
+
+```bash
 streamlit run app.py
 ```
 
 ## Status
 
-v1, core loop, all three tools, the trust-labeling safeguard, and a working Streamlit UI are all built and verified against live runs across multiple tickers and question types. Next steps: broader automated testing across more companies, and persistent memory across runs.
+v1. Core loop, all three tools, the trust-labeling safeguard, and the Streamlit UI are built and verified against live runs. Next: broader accuracy verification beyond the 2-company spot-check, 10-Q support, and persistent memory across runs.
+
+## Author
+
+Simran Parikh, Industrial & Systems Engineering @ Georgia Tech. [LinkedIn](https://linkedin.com/in/simran-parikh-848648271)
