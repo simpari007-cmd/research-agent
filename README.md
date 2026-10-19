@@ -2,7 +2,7 @@
 
 Given a ticker and a research question, this agent decides for itself what to investigate, pulls real data via tool calls, evaluates whether it has enough evidence, and either keeps investigating or writes up findings with sources, instead of following a fixed, scripted pipeline.
 
-**[Try it live](ADD_YOUR_STREAMLIT_URL_HERE)** · Python · Anthropic Claude API · yfinance · SEC EDGAR
+**[Try it live](https://research-agent-kvscuabrek3qeus3kdcxvu.streamlit.app/)** · Python · Anthropic Claude API · yfinance · SEC EDGAR
 
 <!-- Add a screenshot or GIF of the Streamlit UI here. Drag the image into a GitHub issue comment to get a URL, then paste it below as:
 ![Agent reasoning trace](IMAGE_URL)
@@ -39,6 +39,8 @@ Batch-tested across 10 companies (NVDA, AAPL, MSFT, TSLA, JPM, KO, AMZN, META, G
 | Average latency | 10.1 seconds per query |
 | Accuracy spot-check | NVDA and AAPL outputs manually cross-referenced against SEC 10-K filings; cited figures and reasoning matched filing language in both cases |
 
+**A failure found after the batch test, and fixed.** Asked whether revenue growth was slowing at Somnigroup (SGI), the agent compared adjacent quarters, saw a Q3 peak followed by three lower quarters, and reported a "clear downward trend" with full confidence. The Q3 peak was Labor Day seasonality, which is structural for a mattress retailer, not deterioration. Year over year the same quarter was down roughly 3%, a much weaker claim. The system prompt now requires year-over-year comparison for any growth or trend question and requires the agent to state which basis it used. The durable fix is to compute the comparison in `tools.py` rather than asking the model to choose it, which is open work.
+
 **What completion rate does and does not mean:** it measures whether the agent produced a synthesized answer without stalling or erroring, not whether every answer was correct. Accuracy was verified manually on a 2-company subset only. Broader accuracy testing is open work.
 
 ## Known limitations
@@ -46,12 +48,12 @@ Batch-tested across 10 companies (NVDA, AAPL, MSFT, TSLA, JPM, KO, AMZN, META, G
 - Accuracy verified on 2 of 10 companies, not all 10
 - Capped at 5 tool-call steps, so genuinely multi-hop questions can hit the ceiling and answer from partial evidence
 - `get_filing_section` parses the latest 10-K only, so it misses quarter-to-quarter changes in 10-Qs
-- No memory across runs: every question starts cold
+- Context is held within a session only, so follow-ups work but a page reload starts cold; nothing persists across sessions
 - yfinance is an unofficial API and occasionally returns stale or missing line items
 
 ## UI
 
-A Streamlit front end (`app.py`) shows the full reasoning trace live as the agent works: each tool call, its input, and its result in an expandable step, plus a tabbed view separating the trace from the final answer. Includes example question chips and a lightweight verdict badge (improving/deteriorating) based on the answer content.
+A Streamlit front end (`app.py`) shows the full reasoning trace live as the agent works: each tool call, its input, and its result in an expandable step, plus a tabbed view separating the trace from the final answer. The conversation is multi-turn: after the first answer, follow-up questions reuse the full context, so the agent can be pushed on its own findings rather than restarted. Includes example question chips and a lightweight verdict badge (improving/deteriorating) based on the answer content.
 
 ## Example run
 
@@ -90,7 +92,7 @@ streamlit run app.py
 
 ## Status
 
-v1. Core loop, all three tools, the trust-labeling safeguard, and the Streamlit UI are built and verified against live runs. Next: broader accuracy verification beyond the 2-company spot-check, 10-Q support, and persistent memory across runs.
+v1, deployed. Core loop, all three tools, the trust-labeling safeguard, the year-over-year comparison constraint, and a multi-turn Streamlit UI are built, tested, and running live. Next: broader accuracy verification beyond the 2-company spot-check, moving the comparison logic out of the prompt and into the tools, 10-Q support, memory that persists across sessions, and consolidating the three copies of the research loop into one shared module.
 
 ## Author
 
